@@ -1,15 +1,16 @@
-textY = 128
+textY = 96
 textHeight = 12
 
-enemy8health = 0x034B
-enemy8sprite = 0x02D3
-enemy8phaseduration = 0x036B
-enemy8phasecounter = 0x02EB
-enemy8phasetimer = 0x02F3
-enemy8hitbymagiccounter = 0x0343
-enemy8hitbyswordcounter = 0x0353
+enemy1type = 0x0741
+enemy1X = 0x0743
+enemy1Y = 0x0742
+enemy1phaseduration = 0x074E
+enemy1phasecounter = 0x0744
+--enemy1phasetimer = 0x02F3
+--enemy1hitbymagiccounter = 0x0343
+--enemy1hitbyswordcounter = 0x0353
 
-numSprites = 8
+numSprites = 12
 
 spritesLocation = 0x2CC
 spritesXstart = 0x00BA
@@ -19,25 +20,31 @@ spriteSizes = 0xB4DF
 spriteWidths = 0xB4D1
 spriteHeights = 0xB4D8
 
-infoHeight = 0x20
+deltaWidth = -8
+deltaHeight = -24
 
 c = 0
 
-magicCostOffset = 0xB7A9
-selectedMagic = 0x03C0
-manaPoints = 0x039A
-hitPointsFull = 0x0431
-hitPointsFrac = 0x0432
+playerHitPoints = 0x0029
+enemyHitPoints = 0x002A
+playerIFrames = 0x00e9
+bossIFrames = 0x048D
 
 itemCounter = 0x043A
-playerBeh = 0x00A4
+globalClock = 0x01C
+-- playerBeh = 0x00A4
 
 last = {}
 
-function printText (text, fore, back)
+function printText (text, fore, back, dx)
+	if dx then
+		c = c - 1
+	else
+		dx = 0
+	end
 	fore = fore or "white"
 	back = back or "black"
-	gui.text (10, textY + c * textHeight, text, fore, back)
+	gui.text (10+dx, textY + c * textHeight, text, fore, back)
 	c = c + 1
 end
 
@@ -45,103 +52,116 @@ end
 while true do
 	c = 0
 
-	if memory.readbyte(selectedMagic) < 255 then
-		mp = memory.readbyte (manaPoints)
-		mpCost = memory.readbyte (magicCostOffset + memory.readbyte(selectedMagic), "System Bus")
-		manaText = string.format ("MP: %d [%d]", mp, mp / mpCost)
-	else
-		manaText = string.format ("MP: %d", memory.readbyte(manaPoints))
+	gui.text (68, 39, "HP: " .. memory.readbyte(playerHitPoints) .. "  [" .. math.max(0, memory.readbyte(playerIFrames)*8 - memory.readbyte(globalClock)%8) .. "]", "white")
+	gui.text (58, 55, "EHP: " .. memory.readbyte(enemyHitPoints) .. "  [" .. memory.readbyte(bossIFrames) .. "]", "white")
+
+	pX = memory.readbyte (0x0703)
+	SX = 0x0100*memory.readbyte(0x0017) + memory.readbyte (0x0016)
+	pXfrac = memory.readbyte (0x009D)
+	pY = memory.readbyte (0x0702)
+	xVel = memory.readbyte (0x00C8)
+	inv = memory.readbyte (0x00E9)
+	bossInv = memory.readbyte (0x048D)
+	pCool = memory.readbyte(0x070E)
+	enemies = memory.readbyte(0x048A)
+	spawn = memory.readbyte(0x00EB)*8 - memory.readbyte(globalClock)%8
+	--glov = memory.readbyte (0x0428)
+	--boots = memory.readbyte (0x0429)
+	--rng = memory.readbyte (0x00DA)
+	--pause = memory.readbyte (0x1A)
+
+	--pausestr = "";
+	--if pause % 64 == 0 then
+		--pausestr = "UNPAUSE!!!"
+	--elseif pause % 64 == 62 then
+		--pausestr = "PAUSE!!!"
+	--else
+		--pausestr = "" .. pause % 64 .. "(" .. pause .. ")"
+	--end
+
+	--rngVal = bizstring.binary (memory.readbyte (0x8000 + rng, "System Bus"))
+
+	printText (string.format ("SX: %3d X: %3d [%3d] Y: %3d Vx: %2d cnt: %2d sp: %2d e: %2d", SX, pX, pXfrac, pY, xVel, pCool, spawn, enemies))
+
+	if (last["X"]) then
+		printText (string.format ("SX: %3d X: %3d [%3d] Y: %3d Vx: %2d", last["SX"], last["X"], last["Xfrac"], last["Y"], last["xVel"]), "gray")
 	end
 
-	gui.text (80, 32, manaText, "white")
-	gui.text (80, 60, "HP: " .. memory.readbyte(hitPointsFull) .. " [" .. memory.readbyte(hitPointsFrac) .. "]", "white")
+	--beh = memory.readbyte (playerBeh)
+	--printText (string.format ("Behaviours: Atk: %d Ldr: %d Jmp: %d Item: %d", bit.band(beh, 128), bit.band(beh, 8), bit.band(beh, 1), memory.readbyte(itemCounter)))
+	--printText (string.format ("Ointment: %d, Boots: %d, Frame Counter: %s", oint, boots, pausestr))
 
-	printText (string.format ("%2s %3s %10s %3s %3s %3s %3s %4s", "E", "HP", "(  X,   Y)", "P1", "P2", "P3", "Inv", "MInv"))
+	--rock = memory.readbyte(0xD7)
+	--if rock > 0 then
+		--printText (string.format ("Rock: %d", rock))
+	--end
+
+	playerHeight = 32
+	playerWidth = 16
+	animation = memory.readbyte(0x0704)
+	if (animation == 12) then
+		playerHeight = 16
+	elseif (animation == 8) then
+		playerWidth = 36
+	elseif (animation == 128 or animation == 129) then
+		playerWidth = 36
+	end
+
+	gui.drawRectangle (memory.readbyte(0x703) + deltaWidth, memory.readbyte(0x702) + deltaHeight + (32 - playerHeight), playerWidth, playerHeight, "white")
+
+	c = c + 1
+
+  --printText (string.format ("%2s %3s %10s %3s %3s %3s %3s %4s", "E", "Type", "(  X,   Y)", "P1", "P2", "P3", "Inv", "MInv"))
+	printText (string.format ("%2s %4s %10s %3s %3s", "E", "Type", "(  X,   Y)", "P1", "P2"))
+	--printText (string.format ("%2s %4s %10s %3s %3s", "E", "Type", "(  X,   Y)", "P1", "P2"), nil, nil, 300)
 
 	for i = 0, numSprites - 1, 1 do
-		health = memory.readbyte (enemy8health - i)
-		phasedur = memory.readbyte (enemy8phaseduration - i)
-		phasecount = memory.readbyte (enemy8phasecounter - i)
-		phasetimer = memory.readbyte (enemy8phasetimer - i)
-		minv = memory.readbyte (enemy8hitbymagiccounter - i)
-		inv = memory.readbyte  (enemy8hitbyswordcounter - i)
-		eX = memory.readbyte(spritesXstart + (numSprites - i - 1))
-		eY = memory.readbyte(spritesYstart + (numSprites - i - 1))
+		type = memory.readbyte (enemy1type + 0x10*i)
+		if type > 0 then
 
-		spriteX = memory.readbyte (spritesXstart + i)
-		spriteY = memory.readbyte (spritesYstart + i)
-		sprite = memory.readbyte (spritesLocation + i)
-		spriteSize = memory.readbyte (spriteSizes + sprite, "System Bus")
-		spriteWidth = memory.readbyte (spriteWidths + spriteSize, "System Bus")
-		spriteHeight = memory.readbyte (spriteHeights + spriteSize, "System Bus")
+			phasedur = memory.readbyte (enemy1phaseduration + 0x10*i)
+			phasecount = memory.readbyte (enemy1phasecounter + 0x10*i)
+			--phasetimer = memory.readbyte (enemy1phasetimer + 0x10*i)
+			--minv = memory.readbyte (enemy1hitbymagiccounter + 0x10*i)
+			--inv = memory.readbyte  (enemy1hitbyswordcounter + 0x10*i)
+			eX = memory.readbyte(enemy1X + 0x10*i)
+			eY = memory.readbyte(enemy1Y + 0x10*i)
 
-		printText (string.format ("%2d %3d (%3d, %3d) %3d %3d %3d %3d %4d", numSprites - i, health, eX, eY, phasedur, phasecount, phasetimer, inv, minv))
+			--spriteX = memory.readbyte (spritesXstart + i)
+			--spriteY = memory.readbyte (spritesYstart + i)
+			--sprite = memory.readbyte (spritesLocation + i)
+			--spriteSize = memory.readbyte (spriteSizes + sprite, "System Bus")
+			--spriteWidth = memory.readbyte (spriteWidths + spriteSize, "System Bus")
+			--spriteHeight = memory.readbyte (spriteHeights + spriteSize, "System Bus")
 
-		-- Draw hitboxes around most enemies
-		if spriteX > 0 and spriteY > 0 then
-			gui.drawText (spriteX, spriteY + infoHeight, i + 1, "white", "black", 10)
-			gui.drawRectangle(spriteX, spriteY + infoHeight, spriteWidth, spriteHeight, "blue")
+			printText (string.format ("%2d %4d (%3d, %3d) %3d %3d", i + 1, type, eX, eY, phasedur, phasecount))
+
+			-- Draw hitboxes around enemies
+			gui.drawText (eX + deltaWidth+12, eY + deltaHeight, i+1, "white", "black", 10)
+			gui.drawRectangle(eX + deltaWidth + 7, eY + deltaHeight, 4, 32, "blue")
 		end
 	end
 
-	-- Draw useful hitboxes (for NPCs)
-	hX = memory.readbyte (0x03E2)
-	hY = memory.readbyte (0x03E3)
-	hW = memory.readbyte (0x03E4)
-	hH = memory.readbyte (0x03E5)
-	if hX > 0 and hY > 0 then
-		gui.drawRectangle (hX, hY + infoHeight, hW, hH, "white")
+	-- Draw useful hitboxes (for cosmic saucers)
+	for i = 1, 3, 1 do
+		if memory.readbyte(0x0701 + 0x10*i) > 0 then
+			hX = memory.readbyte(0x0703 + 0x10*i)
+			hY = memory.readbyte(0x0702 + 0x10*i)
+
+			hW = 16
+			hH = 1
+			gui.drawRectangle (hX + deltaWidth, hY + deltaHeight + 16 + 7, hW, hH, "white")
+		end
 	end
 
-	if c > 0 then
-		c = c + 1
-	end
-
-	pX = memory.readbyte (0x009E)
-	pXfrac = memory.readbyte (0x009D)
-	pY = memory.readbyte (0x00A1)
-	xVel = memory.read_s16_le (0x00A9)
-	inv = memory.readbyte (0x00AD)
-	oint = memory.readbyte (0x0427)
-	glov = memory.readbyte (0x0428)
-	boots = memory.readbyte (0x0429)
-	rng = memory.readbyte (0x00DA)
-	pause = memory.readbyte (0x1A)
-
-	pausestr = "";
-	if pause % 64 == 0 then
-		pausestr = "UNPAUSE!!!"
-	elseif pause % 64 == 62 then
-		pausestr = "PAUSE!!!"
-	else
-		pausestr = "" .. pause % 64 .. "(" .. pause .. ")"
-	end
-
-	rngVal = bizstring.binary (memory.readbyte (0x8000 + rng, "System Bus"))
-
-	printText (string.format ("X: %3d [%3d] Y: %3d S: %3d I: %2d RNG: %3d [0b%s]", pX, pXfrac, pY, xVel, inv, rng, rngVal))
-
-	if (last["X"]) then
-		printText (string.format ("X: %3d [%3d] Y: %3d S: %3d       RNG: %3d [0b%s]", last["X"], last["Xfrac"], last["Y"], last["Vel"], last["RNG"], last["RNGVal"]), "gray")
-	end
-
-	beh = memory.readbyte (playerBeh)
-	printText (string.format ("Behaviours: Atk: %d Ldr: %d Jmp: %d Item: %d", bit.band(beh, 128), bit.band(beh, 8), bit.band(beh, 1), memory.readbyte(itemCounter)))
-	printText (string.format ("Ointment: %d, Boots: %d, Frame Counter: %s", oint, boots, pausestr))
-
-	rock = memory.readbyte(0xD7)
-	if rock > 0 then
-		printText (string.format ("Rock: %d", rock))
-	end
-
-	gui.drawRectangle (memory.readbyte(0x009E), memory.readbyte(0x00A1) + infoHeight, 16, 32, "white")
 
 	emu.frameadvance();
 
+	last["SX"] = SX
 	last["X"] = pX
 	last["Xfrac"] = pXfrac
 	last["Y"] = pY
-	last["Vel"] = xVel
-	last["RNG"] = rng
-	last["RNGVal"] = rngVal
+	last["xVel"] = xVel
+	--last["RNG"] = rng
+	--last["RNGVal"] = rngVal
 end
