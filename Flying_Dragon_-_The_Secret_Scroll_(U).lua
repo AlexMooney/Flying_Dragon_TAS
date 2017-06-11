@@ -172,17 +172,26 @@ while true do
 		pX = memory.readbyte( 0x0683)
 		eY = memory.readbyte( 0x06C2)
 		eX = memory.readbyte( 0x06C3)
+
 		potion = memory.readbyte( 0x0780)
 		potionX = memory.readbyte( 0x0782)
 		potionY = memory.readbyte( 0x0783)
 
-		atkCnt = memory.readbyte( 0x06E7)
+		enemyAttackCountdown = memory.readbyte( 0x06E7)
+		recoverCnt = memory.readbyte( 0x060C)
+		unknownCnt = memory.readbyte( 0x0131)
+		canHit = memory.readbyte( 0x0266)
 
 		printText(string.format("You   X: %3d Y: %3d", pX, pY))
 		printText(string.format("Enemy X: %3d Y: %3d", eX, eY))
 
 		c = c+1
-		printText(string.format("Attack Cnt: %2d", atkCnt))
+		printText(string.format("EAtk: %2d RecCnt: %2d ?Cnt: %2d Hit?: %3d",
+			enemyAttackCountdown ,
+			recoverCnt,
+			unknownCnt,
+			canHit
+		))
 	end
 	emu.frameadvance();
 end
